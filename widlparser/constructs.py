@@ -335,6 +335,77 @@ class Argument(Construct):    # [ExtendedAttributeList] "optional" [IgnoreInOut]
         output += '[name: ' + unicode(self.name) + ']'
         return output + ((' [default: ' + repr(self.default) + ']]') if (self.default) else ']')
 
+class MixinMember(Construct): # [ExtendedAttributes] Const | Operation | Stringifier | ReadOnlyAttribute
+    @classmethod
+    def peek(cls, tokens):
+        tokens.pushPosition(False)
+        Construct.peek(tokens)
+        return tokens.popPosition(Const.peek(tokens) or Operation.peek(tokens)
+                                  Stringifier.peek(tokens) or ReadOnlyAttribute.peek(tokens))
+
+    def __init__(self, tokens, parent):
+        Construct.__init__(self, tokens, parent)
+        if (Const.peek(tokens)):
+            self.member = Const(tokens, parent)
+        elif (Stringifier.peek(tokens)):
+            self.member = Stringifier(tokens, parent)
+        elif (ReadOnlyAttribute.peek(tokens)):
+            self.member = ReadOnlyAttribute(tokens, parent)
+        else:
+            self.member = Operation(tokens, parent)
+        self._didParse(tokens)
+
+    @property
+    def idlType(self):
+        return self.member.idlType
+
+    @property
+    def name(self):
+        return self.member.name
+
+    @property
+    def methodName(self):
+        return self.member.methodName
+
+    @property
+    def methodNames(self):
+        return self.member.methodNames
+
+    @property
+    def normalName(self):
+        return self.methodName if (self.methodName) else self.name
+
+    @property
+    def arguments(self):
+        return self.member.arguments
+
+    def findArgument(self, name, searchMembers = True):
+        if (hasattr(self.member, 'arguments') and self.member.arguments):
+            for argument in self.member.arguments:
+                if (name == argument.name):
+                    return argument
+        return None
+
+    def findArguments(self, name, searchMembers = True):
+        if (hasattr(self.member, 'arguments') and self.member.arguments):
+            return [argument for argument in self.member.arguments if (name == argument.name)]
+        return []
+
+    def matchesArgumentNames(self, argumentNames):
+        if (self.arguments):
+            return self.arguments.matchesNames(argumentNames)
+        return (not argumentNames)
+
+    def _unicode(self):
+        return Construct._unicode(self) + unicode(self.member)
+
+    def _markup(self, generator):
+        return self.member._markup(generator)
+
+    def __repr__(self):
+        output = '[member: ' + Construct.__repr__(self)
+        return output + repr(self.member) + ']'
+
 
 class InterfaceMember(Construct): # [ExtendedAttributes] Const | Operation | SpecialOperation | Stringifier | StaticMember | Iterable | Attribute | Maplike | Setlike
     @classmethod
